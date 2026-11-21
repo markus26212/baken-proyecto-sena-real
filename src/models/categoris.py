@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String
 from src.models import Base
 
 class Categoris(Base): 
-    __tablename__ = 'categoris'
+    __tablename__ = 'categories'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False) 
