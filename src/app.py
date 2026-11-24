@@ -2,7 +2,9 @@ from flask import Flask
 from src.models import Base, engine
 from src.models.products import Products
 from src.models.users import Users 
-from src.models.clientes import clientes
+from src.models.Clients import Clients
+from src.models.invoices import Invoices
+from src.models.invoice_details import InvoiceDetails
 from src.models.categoris import Categoris
 from src.routes import register_routes
 

@@ -12,6 +12,7 @@ class Categoris(Base):
     def __init__(self, name, description = None): 
         self.name = name
         self.description = description
-
-    def __repr__(self):
-       return f"<Category(id={self.id}, name='{self.name}', description='{self.description}')>"     
+    @staticmethod
+    def get_by_id(category_id):
+        return session.query(Categories).filter_by(id=category_id).first()
+   

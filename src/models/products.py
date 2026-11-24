@@ -14,30 +14,24 @@ class Products(Base):
     active = Column(Integer, default=1)  # 1 for active, 0 for inactive
 
     def __init__(self, name, price, category_id, description=None, stock=0):
-        self.name = name
-        self.description = description
-        self.price = price
-        self.stock = stock
-        self.category_id = category_id
-    def __repr__(self):
-        return f"<Product(id={self.id}, name='{self.name}', price={self.price}, stock={self.stock}, category_id={self.category_id}, active={self.active})>"
-    
+        self.name, self.price, self.category_id = name, price, category_id
+        self.description, self.stock = description, stock
+
+    @staticmethod
     def get_paginated(page, per_page):
-        total_products = session.query(func.count(Products.id)).scalar()
-        products = session.query(Products).offset((page - 1) * per_page).limit(per_page).all()
-        return products, total_products
-    
+        total = session.query(func.count(Products.id)).scalar()
+        return session.query(Products).offset((page-1)*per_page).limit(per_page).all(), total
+
+    @staticmethod
     def get_by_id(product_id):
-        product = session.query(Products).filter_by(id=product_id).first()
-        return product
-    
+        return session.query(Products).filter_by(id=product_id).first()
+
+    @staticmethod
     def get_by_name(name):
-        product = session.query(Products).filter_by(name=name).first()
-        return product
-    
+        return session.query(Products).filter_by(name=name).first()
+
     def save(self):
-        session.add(self)
-        session.commit()
-    
+        session.add(self); session.commit()
+
     def update(self):
-        session.commit()        
+        session.commit()
