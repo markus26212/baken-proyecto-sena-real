@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from src.models.clients import Clients, DocumentType
+from src.models.Clients import Clients, DocumentType
 from src.models.users import Role
 from src.utils.auth import token_required, role_required
 from src.utils.responses import validation_error, page_data

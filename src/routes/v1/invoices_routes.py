@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, g
 from src.models.invoices import Invoices
-from src.models.clients import Clients
+from src.models.Clients import Clients
 from src.models.users import Users, Role
 from src.models.invoice_details import InvoiceDetails
 from src.models.products import Products

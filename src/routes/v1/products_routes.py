@@ -1,152 +1,71 @@
 from flask import Blueprint, jsonify, request
 from src.models.products import Products
+from src.models.categoris import Categories
+from src.models.users import Role
+from src.utils.auth import token_required, role_required
+from src.utils.responses import validation_error, error, page_data
+products_bp=Blueprint('products_v1',__name__,url_prefix='/api/v1')
+def product_json(p): return {'id':p.id,'name':p.name,'description':p.description,'price':p.price,'stock':p.stock,'category_id':p.category_id,'active':p.active}
 
-products_bp = Blueprint('products_v1', __name__, url_prefix='/api/v1')
+@products_bp.get('/products')
+@token_required
+@role_required(Role.ADMIN,Role.SELLER)
+def get_products():
+    page=max(request.args.get('page',1,type=int),1); per_page=max(request.args.get('per_page',3,type=int),1)
+    items,total=Products.get_paginated(page,per_page)
+    return jsonify(page_data(items,page,per_page,total,'total_products',product_json)),200
 
-@products_bp.route('/products', methods=['GET'])
-def get_products():    
-    page = request.args.get('page', default=1, type=int)
-    per_page = request.args.get('per_page', default=3, type=int)  # Set default per_page to 3
-    products, total_products = Products.get_paginated(page=page, per_page=per_page)
-    total_pages = (total_products + per_page - 1) // per_page  # Calculate total pages based on per_page=3
-    return jsonify({
-        'data':
-                [{
-                'id': product.id,
-                'name': product.name,
-                'description': product.description,
-                'price': product.price,
-                'stock': product.stock,
-                'category_id': product.category_id,
-                'active': product.active
-            } for product in products],
-            'meta': {
-                'page': page,
-                'per_page': per_page,
-                'total_pages': total_pages,
-                'total_products': total_products,
-                'has_next': page < total_pages,
-                'has_prev': page > 1
-            }
-        }
-    ), 200
-
-@products_bp.route('/products/<int:product_id>', methods=['GET'])
+@products_bp.get('/products/<int:product_id>')
+@token_required
+@role_required(Role.ADMIN,Role.SELLER)
 def get_product_by_id(product_id):
-    product = Products.get_by_id(product_id)
-    if product:
-        return jsonify({
-            'id': product.id,
-            'name': product.name,
-            'description': product.description,
-            'price': product.price,
-            'stock': product.stock,
-            'category_id': product.category_id,
-            'active': product.active
-        })
-    else:
-        return jsonify({'success': False,
-                         'message': 'Product not found'}), 404
+    p=Products.get_by_id(product_id)
+    return (jsonify(product_json(p)),200) if p else (jsonify(error('Product not found',404)[0]),404)
 
-@products_bp.route('/products', methods=['POST'])
+@products_bp.post('/products')
+@token_required
+@role_required(Role.ADMIN)
 def post_products():
-    data = request.get_json()
-    name = data.get('name')
-    description = data.get('description')
-    price = data.get('price')
-    stock = data.get('stock', 0)
-    category_id = data.get('category_id')
-    errors = {}
-    if not name:
-        errors['name'] = 'name is required' 
+    data=request.get_json(silent=True) or {}; errors={}
+    name=data.get('name'); price=data.get('price'); stock=data.get('stock',0); category_id=data.get('category_id')
+    if not name: errors['name']='name is required'
+    elif Products.get_by_name(name): errors['name']='name must be unique'
+    if price is None: errors['price']='price is required'
     else:
-        existing_product = Products.get_by_name(name)
-        if existing_product:
-            errors['name'] = 'name must be unique'
-    if not price:
-        errors['price'] = 'price is required'
+        try: price=float(price)
+        except (TypeError,ValueError): errors['price']='price must be a number'
+        else:
+            if price<0: errors['price']='price must be a non-negative number'
+    try: stock=float(stock)
+    except (TypeError,ValueError): errors['stock']='stock must be a number'
     else:
-        try:
-            price = float(price)
-            if price < 0:
-                errors['price'] = 'price must be a non-negative number'
-        except ValueError:
-            errors['price'] = 'price must be a number'    
-    if not category_id:
-        errors['category_id'] = 'category_id is required'
-    if errors:    
-        return jsonify({ 'success': False,
-                         'message': 'Errors in data validation',
-                         'validation-errors': errors
-                       }), 400    
-    new_product = Products(name=name, description=description, price=price, stock=stock, category_id=category_id)    
-    Products.save(new_product)
-    return jsonify({
-        'id': new_product.id,
-        'name': new_product.name,
-        'description': new_product.description,
-        'price': new_product.price,
-        'stock': new_product.stock,
-        'category_id': new_product.category_id,
-        'active': new_product.active
-    }), 201
+        if stock<0: errors['stock']='stock must be a non-negative number'
+    if category_id is None: errors['category_id']='category_id is required'
+    elif not Categories.get_by_id(category_id): errors['category_id']='category_id does not exist'
+    if errors: return validation_error(errors)
+    p=Products(name,price,category_id,data.get('description'),stock); p.save()
+    return jsonify(product_json(p)),201
 
-@products_bp.route('/products/<int:product_id>', methods=['PUT'])
+@products_bp.put('/products/<int:product_id>')
+@token_required
+@role_required(Role.ADMIN)
 def put_products(product_id):
-    product = Products.get_by_id(product_id)
-    if not product:
-        return jsonify({'success': False,
-                         'message': 'Product not found'}), 404
-    data = request.get_json()
-    name = data.get('name')
-    description = data.get('description')
-    price = data.get('price')
-    stock = data.get('stock')
-    category_id = data.get('category_id')
-    errors = {}
-
-    if product.name != name:
-        existing_product = Products.get_by_name(name)
-        if existing_product:
-            errors['name'] = 'name must be unique'
-
-    if name is not None:
-        product.name = name   
-
-    if description is not None:
-        product.description = description
-    if price is not None:
-        try:
-            price = float(price)
-            if price < 0:
-                errors['price'] = 'price must be a non-negative number'
+    p=Products.get_by_id(product_id)
+    if not p: return jsonify({'success':False,'message':'Product not found'}),404
+    data=request.get_json(silent=True) or {}; errors={}; values={}
+    for field in ('name','description','price','stock','category_id'):
+        if field in data: values[field]=data[field]
+    if values.get('name') is not None and values['name']!=p.name:
+        other=Products.get_by_name(values['name'])
+        if other and other.id!=p.id: errors['name']='name must be unique'
+    for field in ('price','stock'):
+        if field in values and values[field] is not None:
+            try: values[field]=float(values[field])
+            except (TypeError,ValueError): errors[field]=f'{field} must be a number'
             else:
-                product.price = price
-        except ValueError:
-            errors['price'] = 'price must be a number'
-    if stock is not None:
-        try:
-            stock = float(stock)
-            if stock < 0:
-                errors['stock'] = 'stock must be a non-negative number'
-            else:
-                product.stock = stock
-        except ValueError:
-            errors['stock'] = 'stock must be a number'
-    if category_id is not None:
-        product.category_id = category_id
-    if errors:    
-        return jsonify({ 'success': False,
-                         'message': 'Errors in data validation',
-                         'validation-errors': errors
-                       }), 400    
-    Products.update(product)
-    return jsonify({
-        'id': product.id,
-        'name': product.name,
-        'description': product.description,
-        'price': product.price,
-        'stock': product.stock,
-        'category_id': product.category_id,
-        'active': product.active
-    })
+                if values[field]<0: errors[field]=f'{field} must be a non-negative number'
+    if values.get('category_id') is not None and not Categories.get_by_id(values['category_id']): errors['category_id']='category_id does not exist'
+    if errors: return validation_error(errors)
+    for field,value in values.items():
+        if value is not None: setattr(p,field,value)
+    p.update(); return jsonify(product_json(p)),200

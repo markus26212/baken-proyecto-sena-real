@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String
-from src.models import Base
+from src.models import Base,session
 
 class Categoris(Base): 
     __tablename__ = 'categories'
@@ -14,5 +14,5 @@ class Categoris(Base):
         self.description = description
     @staticmethod
     def get_by_id(category_id):
-        return session.query(Categories).filter_by(id=category_id).first()
+        return session.query(Categoris).filter_by(id=category_id).first()
    
