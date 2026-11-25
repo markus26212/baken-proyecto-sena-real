@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from src.models.products import Products
-from src.models.categoris import Categories
+from src.models.categoris import Categoris
 from src.models.users import Role
 from src.utils.auth import token_required, role_required
 from src.utils.responses import validation_error, error, page_data
@@ -41,7 +41,7 @@ def post_products():
     else:
         if stock<0: errors['stock']='stock must be a non-negative number'
     if category_id is None: errors['category_id']='category_id is required'
-    elif not Categories.get_by_id(category_id): errors['category_id']='category_id does not exist'
+    elif not Categoris.get_by_id(category_id): errors['category_id']='category_id does not exist'
     if errors: return validation_error(errors)
     p=Products(name,price,category_id,data.get('description'),stock); p.save()
     return jsonify(product_json(p)),201
@@ -64,7 +64,7 @@ def put_products(product_id):
             except (TypeError,ValueError): errors[field]=f'{field} must be a number'
             else:
                 if values[field]<0: errors[field]=f'{field} must be a non-negative number'
-    if values.get('category_id') is not None and not Categories.get_by_id(values['category_id']): errors['category_id']='category_id does not exist'
+    if values.get('category_id') is not None and not Categoris.get_by_id(values['category_id']): errors['category_id']='category_id does not exist'
     if errors: return validation_error(errors)
     for field,value in values.items():
         if value is not None: setattr(p,field,value)
